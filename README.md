@@ -8,7 +8,7 @@ Activity from this library and receive back the resulting photo captured by the 
 
 ## Usage
 #### 1. Import the module in build.gradle
-```
+```gradle
 dependencies {
     implementation "androidx.camera:camera-activity:1.0.0"
 }
@@ -16,28 +16,44 @@ dependencies {
 NOTE: This library is not on Maven yet. Instead, download the code, compile an AAR file and add it
 to your project using [these instructions](https://stackoverflow.com/a/34919810).
 
-#### 2. Add the activity to the app's manifest
+Alternatively, use the library directly from this repo compiled by jitpack.io:
+```gradle
+// Top-level build.gradle:
+allprojects {
+    repositories {
+        ...
+        maven { url 'https://jitpack.io' }
+    }
+}
+
+// Project build.gradle:
+dependencies {
+    implementation 'com.github.owahltinez:androidx-camera-activity:master-SNAPSHOT'
+}
 ```
+
+#### 2. Add the activity to the app's manifest
+```xml
 <activity android:name="androidx.camera.activity.PhotoActivity">
-    <!-- Configuration via meta-data tags can be added here -->
+    <!-- Optional: configuration via meta-data tags can be added here -->
 </activity>
 ```
 
 #### 3. Invoke the activity via Intent
-```
-val photoIntent = Intent(MediaStore.ACTION_IMAGE_CAPTURE)
+```kotlin
+val photoIntent = Intent(this, PhotoActivity::class.java)
 startActivityForResult(photoIntent, PHOTO_REQUEST_CODE)
 ```
 
 #### 4. Receive the result
-```
+```kotlin
 override fun onActivityResult(
     requestCode: Int,
     resultCode: Int,
     data: Intent
 ) {
     if (requestCode == PHOTO_REQUEST_CODE && resultCode == RESULT_OK) {
-        val imageUri = data.extras.get(CameraActivity.IMAGE_URI) as Uri
+        val imageUri = data.extras.get(PhotoActivity.IMAGE_URI) as Uri
         // Do something with the image URI
     }
 }
@@ -63,24 +79,24 @@ mechanism described in [the Android documentation]
 ## Customizing the Activity
 By design, the activity is very simple so there are few potential settings to customize.
 Customizations are set in one of two ways:
-1. Using Manifest metadata
+1. Using Intent extras
+    ```kotlin
+    startActivityForResult(Intent(this, PhotoActivity::class.java).apply {
+        putExtra(PhotoActivity.CAMERA_SWITCH_DISABLED, true)
+    }, PHOTO_REQUEST_CODE)
     ```
-    <activity name="androidx.camera.activity.PhotoActivity>
+2. Using Manifest metadata
+    ```xml
+    <activity name="androidx.camera.activity.PhotoActivity">
         <meta-data
             android:name="androidx.camera.activity.PhotoActivity.CAMERA_SWITCH_DISABLED"
             android:value="true" />
     </activity>
     ```
-2. Using Intent extras
-    ```
-    startActivityForResult(Intent(this, PhotoActivity::class.java).apply {
-        putExtra(PhotoActivity.CAMERA_SWITCH_DISABLED, true)
-    }, PHOTO_REQUEST_CODE)
-    ```
 
 
 ## Examples
-See the `sample` subfolder for a project implementing this activity.
+See the [`sample`](sample) subfolder for a project implementing this activity.
 
 
 ![screenshot 1](screenshots/example-main-activity.png "screenshot 1")

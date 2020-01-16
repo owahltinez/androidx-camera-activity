@@ -48,19 +48,19 @@ private const val IMMERSIVE_FLAG_TIMEOUT = 500L
  * storage folder, and the URI is sent back to the launching activity as an intent extra.
  *
  * This activity can be customized in two ways:
- * 1. Using Manifest metadata
+ * 1. Using Intent extras
+ * ```
+ * startActivityForResult(Intent(this, PhotoActivity::class.java).apply {
+ *     putExtra(PhotoActivity.CAMERA_SWITCH_DISABLED, true)
+ * }, PHOTO_REQUEST_CODE)
+ * ```
+ * 2. Using Manifest metadata
  * ```
  * <activity name="androidx.camera.activity.PhotoActivity>
  *     <meta-data
  *         android:name="androidx.camera.activity.PhotoActivity.CAMERA_SWITCH_DISABLED"
  *         android:value="true" />
  * </activity>
- * ```
- * 2. Using Intent extras
- * ```
- * startActivityForResult(Intent(this, PhotoActivity::class.java).apply {
- *     putExtra(PhotoActivity.CAMERA_SWITCH_DISABLED, true)
- * }, PHOTO_REQUEST_CODE)
  * ```
  *
  * The different customization options are:
