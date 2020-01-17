@@ -104,3 +104,5 @@ See the [`sample`](sample) subfolder for a project implementing this activity.
 ![screenshot 2](screenshots/example-take-photo.png "screenshot 2")
 
 ![screenshot 3](screenshots/example-take-photo-overlay.png "screenshot 3")
+
+![screenshot 4](screenshots/example-photo-result.png "screenshot 4")
