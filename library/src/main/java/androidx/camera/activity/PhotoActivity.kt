@@ -26,15 +26,16 @@ import android.net.Uri
 import android.os.Bundle
 import android.util.Log
 import android.view.KeyEvent
-import android.view.TextureView
 import android.view.View
 import android.widget.ImageButton
-import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.camera.core.*
+import androidx.camera.lifecycle.ProcessCameraProvider
+import androidx.camera.view.PreviewView
 import androidx.constraintlayout.widget.ConstraintLayout
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
+import androidx.lifecycle.LifecycleOwner
 import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Locale
@@ -71,10 +72,15 @@ private const val IMMERSIVE_FLAG_TIMEOUT = 500L
 class PhotoActivity : AppCompatActivity() {
 
     private lateinit var container: ConstraintLayout
-    private lateinit var viewFinder: TextureView
+    private lateinit var viewFinder: PreviewView
 
     private var preview: Preview? = null
     private var imageCapture: ImageCapture? = null
+    private var lensFacing: Int = CameraSelector.LENS_FACING_BACK
+
+    private val cameraProvider by lazy {
+        ProcessCameraProvider.getInstance(this)
+    }
 
     private val executor by lazy {
         ContextCompat.getMainExecutor(this)
@@ -176,8 +182,7 @@ class PhotoActivity : AppCompatActivity() {
         }
 
         // Inflate a new view containing all UI for controlling the camera
-        val controls = View.inflate(this,
-            R.layout.camera_controls, container)
+        val controls = View.inflate(this, R.layout.camera_controls, container)
 
         // Listener for button used to capture photo
         controls.findViewById<ImageButton>(R.id.camera_capture_button).setOnClickListener {
@@ -196,13 +201,12 @@ class PhotoActivity : AppCompatActivity() {
                 // Setup image capture metadata
                 val metadata = ImageCapture.Metadata().apply {
                     // Mirror image when using the front camera
-                    //isReversedHorizontal = lensFacing == CameraX.LensFacing.FRONT
-                    // TODO: Fix after updating lib version
+                    isReversedHorizontal = lensFacing == CameraSelector.LENS_FACING_FRONT
                 }
 
                 // Setup image capture listener which is triggered after photo has been taken
                 imageCapture.takePicture(
-                    photoFile, metadata, executor, object : ImageCapture.OnImageSavedListener {
+                    photoFile, metadata, executor, object : ImageCapture.OnImageSavedCallback {
 
                         override fun onImageSaved(file: File) {
                             setResult(Activity.RESULT_OK, Intent().apply {
@@ -212,7 +216,7 @@ class PhotoActivity : AppCompatActivity() {
                         }
 
                         override fun onError(
-                            imageCaptureError: ImageCapture.ImageCaptureError,
+                            imageCaptureError: Int,
                             message: String,
                             exc: Throwable?
                         ) {
@@ -230,7 +234,16 @@ class PhotoActivity : AppCompatActivity() {
 
         // Listener for button used to switch cameras
         controls.findViewById<ImageButton>(R.id.camera_switch_button).setOnClickListener {
-            Toast.makeText(this, "TODO", Toast.LENGTH_SHORT).show()
+
+            // Flip-flop the required lens facing
+            lensFacing = if (CameraSelector.LENS_FACING_FRONT == lensFacing) {
+                CameraSelector.LENS_FACING_BACK
+            } else {
+                CameraSelector.LENS_FACING_FRONT
+            }
+
+            // Re-bind all use cases
+            bindCameraUseCases()
         }
 
         // Apply user configuration every time controls are drawn
@@ -240,30 +253,33 @@ class PhotoActivity : AppCompatActivity() {
     /** Declare and bind preview, capture and analysis use cases */
     private fun bindCameraUseCases() = viewFinder.post {
 
-        // Set up the view finder use case to display camera preview
-        val viewFinderConfig = PreviewConfig.Builder().apply {
-            setLensFacing(CameraX.LensFacing.BACK)
-            setTargetRotation(viewFinder.display.rotation)
-        }.build()
+        cameraProvider.addListener(Runnable {
 
-        // Use the auto-fit preview builder to automatically handle size and orientation changes
-        preview = AutoFitPreviewBuilder.build(
-            viewFinderConfig,
-            viewFinder
-        )
+            // Camera provider is now guaranteed to be available
+            val cameraProvider = cameraProvider.get()
 
-        // Set up the capture use case to allow users to take photos
-        val imageCaptureConfig = ImageCaptureConfig.Builder().apply {
-            setLensFacing(CameraX.LensFacing.BACK)
-            setCaptureMode(ImageCapture.CaptureMode.MIN_LATENCY)
-            setTargetRotation(viewFinder.display.rotation)
-        }.build()
+            // Set up the view finder use case to display camera preview
+            preview = Preview.Builder()
+                .setTargetRotation(viewFinder.display.rotation)
+                .build()
+                .apply {
+                    previewSurfaceProvider = viewFinder.previewSurfaceProvider
+                }
 
-        imageCapture = ImageCapture(imageCaptureConfig)
+            // Set up the capture use case to allow users to take photos
+            imageCapture = ImageCapture.Builder()
+                .setCaptureMode(ImageCapture.CAPTURE_MODE_MINIMIZE_LATENCY)
+                .setTargetRotation(viewFinder.display.rotation)
+                .build()
 
-        // Apply declared configs to CameraX using the same lifecycle owner
-        CameraX.unbindAll()
-        CameraX.bindToLifecycle(this, preview, imageCapture)
+            // Create a new camera selector each time, enforcing lens facing
+            val cameraSelector = CameraSelector.Builder().requireLensFacing(lensFacing).build()
+
+            // Apply declared configs to CameraX using the same lifecycle owner
+            cameraProvider.unbindAll()
+            val camera = cameraProvider.bindToLifecycle(
+                this as LifecycleOwner, cameraSelector, preview, imageCapture)
+        }, executor)
     }
 
     override fun onResume() {
