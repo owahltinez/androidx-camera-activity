@@ -21,6 +21,7 @@ import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
 import androidx.appcompat.app.AppCompatActivity
+import androidx.camera.activity.CameraConfiguration
 import androidx.camera.activity.PhotoActivity
 import coil.api.load
 import kotlinx.android.synthetic.main.activity_main.photo_view
@@ -42,7 +43,7 @@ class MainActivity : AppCompatActivity() {
 
         take_photo_overlay.setOnClickListener {
             startActivityForResult(Intent(this, PhotoActivity::class.java).apply {
-                putExtra(PhotoActivity.VIEW_FINDER_OVERLAY, R.layout.camera_overlay_square)
+                putExtra(CameraConfiguration.VIEW_FINDER_OVERLAY, R.layout.camera_overlay_square)
             }, PHOTO_REQUEST_CODE)
         }
     }
@@ -50,7 +51,7 @@ class MainActivity : AppCompatActivity() {
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
         if (requestCode == PHOTO_REQUEST_CODE && resultCode == Activity.RESULT_OK) {
-            val photoUri = data?.extras?.get(PhotoActivity.IMAGE_URI) as Uri?
+            val photoUri = data?.extras?.get(CameraConfiguration.IMAGE_URI) as Uri?
             photoUri?.let { photo_view.load(it) }
         }
     }

@@ -36,7 +36,7 @@
         android:id="@+id/take_photo"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="Take photo"
+        android:text="@string/take_photo"
         android:layout_margin="@dimen/spacing_large"
         app:layout_constraintTop_toBottomOf="@+id/photo_view" />
 
@@ -44,7 +44,7 @@
         android:id="@+id/take_photo_overlay"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="Take photo with overlay"
+        android:text="@string/take_photo_overlay"
         android:layout_margin="@dimen/spacing_large"
         app:layout_constraintTop_toBottomOf="@+id/take_photo" />
 

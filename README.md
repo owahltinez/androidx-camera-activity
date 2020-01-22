@@ -53,7 +53,7 @@ override fun onActivityResult(
     data: Intent
 ) {
     if (requestCode == PHOTO_REQUEST_CODE && resultCode == RESULT_OK) {
-        val imageUri = data.extras.get(PhotoActivity.IMAGE_URI) as Uri
+        val imageUri = data.extras.get(CameraConfiguration.IMAGE_URI) as Uri
         // Do something with the image URI
     }
 }
@@ -82,14 +82,14 @@ Customizations are set in one of two ways:
 1. Using Intent extras
     ```kotlin
     startActivityForResult(Intent(this, PhotoActivity::class.java).apply {
-        putExtra(PhotoActivity.CAMERA_SWITCH_DISABLED, true)
+        putExtra(CameraConfiguration.CAMERA_SWITCH_DISABLED, true)
     }, PHOTO_REQUEST_CODE)
     ```
 2. Using Manifest metadata
     ```xml
     <activity name="androidx.camera.activity.PhotoActivity">
         <meta-data
-            android:name="androidx.camera.activity.PhotoActivity.CAMERA_SWITCH_DISABLED"
+            android:name="androidx.camera.activity.FULL_SCREEN_ENABLED"
             android:value="true" />
     </activity>
     ```

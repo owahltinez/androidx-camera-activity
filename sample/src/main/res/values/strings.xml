@@ -16,4 +16,7 @@
   -->
 <resources>
     <string name="app_name">Camera Activity Example</string>
+    <string name="take_photo">Take photo</string>
+    <string name="take_photo_overlay">Take photo with overlay</string>
+    <string name="keep_subject_within_square">keep subject within square</string>
 </resources>

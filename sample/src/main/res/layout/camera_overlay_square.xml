@@ -23,7 +23,8 @@
     <TextView
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="Keep Subject Within Square"
+        android:text="@string/keep_subject_within_square"
+        android:textAllCaps="true"
         android:textAlignment="center"
         android:textColor="@color/overlay"
         android:textAppearance="@style/TextAppearance.AppCompat.Headline"

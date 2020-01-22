@@ -23,13 +23,17 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.content.res.Configuration
 import android.net.Uri
+import android.os.Build
 import android.os.Bundle
 import android.util.Log
 import android.view.KeyEvent
 import android.view.View
+import android.view.WindowManager
 import android.widget.ImageButton
 import androidx.appcompat.app.AppCompatActivity
-import androidx.camera.core.*
+import androidx.camera.core.CameraSelector
+import androidx.camera.core.ImageCapture
+import androidx.camera.core.Preview
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
 import androidx.constraintlayout.widget.ConstraintLayout
@@ -52,22 +56,22 @@ private const val IMMERSIVE_FLAG_TIMEOUT = 500L
  * 1. Using Intent extras
  * ```
  * startActivityForResult(Intent(this, PhotoActivity::class.java).apply {
- *     putExtra(PhotoActivity.CAMERA_SWITCH_DISABLED, true)
+ *     putExtra(FULL_SCREEN_ENABLED, true)
  * }, PHOTO_REQUEST_CODE)
  * ```
  * 2. Using Manifest metadata
  * ```
  * <activity name="androidx.camera.activity.PhotoActivity>
  *     <meta-data
- *         android:name="androidx.camera.activity.PhotoActivity.CAMERA_SWITCH_DISABLED"
+ *         android:name="androidx.camera.activity.FULL_SCREEN_ENABLED"
  *         android:value="true" />
  * </activity>
  * ```
  *
  * The different customization options are:
- * - `PhotoActivity.CAMERA_SWITCH_DISABLED`: hides camera switch button (use default camera only)
- * - `PhotoActivity.CAMERA_BACKNAV_DISABLED`: hides the back navigation button from UI
- * - `PhotoActivity.VIEW_FINDER_OVERLAY`: resource ID to inflate within the camera view (viewfinder)
+ * - `CAMERA_SWITCH_DISABLED`: hides camera switch button (use default camera only)
+ * - `FULL_SCREEN_ENABLED`: puts the application into immersive mode for this activity
+ * - `VIEW_FINDER_OVERLAY`: resource ID to inflate within the camera view (viewfinder)
  */
 class PhotoActivity : AppCompatActivity() {
 
@@ -87,10 +91,12 @@ class PhotoActivity : AppCompatActivity() {
     }
 
     private val metadata by lazy {
-        packageManager.getApplicationInfo(packageName, PackageManager.GET_META_DATA).metaData
+        packageManager.getActivityInfo(componentName, PackageManager.GET_META_DATA).metaData
     }
 
-    private val overlay by lazy { getConfigurationValue(VIEW_FINDER_OVERLAY) as Int? }
+    private val overlay by lazy {
+        getConfigurationValue(CameraConfiguration.VIEW_FINDER_OVERLAY) as Int?
+    }
 
     private val permissions by lazy {
         listOf(Manifest.permission.CAMERA)
@@ -113,9 +119,16 @@ class PhotoActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
         setContentView(R.layout.activity_camera)
         container = findViewById(R.id.camera_container)
         viewFinder = findViewById(R.id.view_finder)
+
+        // Try to provide a seamless rotation for devices that support it
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            window.attributes.rotationAnimation =
+                WindowManager.LayoutParams.ROTATION_ANIMATION_SEAMLESS
+        }
 
         // Operate on the viewfinder's thread to make sure it's ready
         viewFinder.post { drawCameraControls() }
@@ -128,16 +141,23 @@ class PhotoActivity : AppCompatActivity() {
         overlay?.let { View.inflate(this, it, container) }
 
         // If the user requested a specific lens facing, select it
-        // TODO
+        getConfigurationValue(CameraConfiguration.CAMERA_LENS_FACING)?.let {
+            lensFacing = it as Int
+        }
 
         // If the user disabled camera switching, hide the button
-        if (true == getConfigurationValue(CAMERA_SWITCH_DISABLED)) {
+        if (true == getConfigurationValue(CameraConfiguration.CAMERA_SWITCH_DISABLED)) {
             container.findViewById<ImageButton>(R.id.camera_switch_button).visibility = View.GONE
         }
 
-        // If the user disabled camera back navigation button, hide the button
-        if (true == getConfigurationValue(CAMERA_BACKNAV_DISABLED)) {
-            container.findViewById<ImageButton>(R.id.camera_back_button).visibility = View.GONE
+        // If the user requested full screen, set the appropriate flags
+        if (true == getConfigurationValue(CameraConfiguration.FULL_SCREEN_ENABLED)) {
+
+            // Before setting full screen flags, we must wait a bit to let UI settle; otherwise, we may
+            // be trying to set app to immersive mode before it's ready and the flags do not stick
+            container.postDelayed({
+                container.systemUiVisibility = FLAGS_FULLSCREEN
+            }, IMMERSIVE_FLAG_TIMEOUT)
         }
     }
 
@@ -173,7 +193,9 @@ class PhotoActivity : AppCompatActivity() {
         finish()
     }
 
-    /** Method used to re-draw the camera UI controls, called every time configuration changes */
+    /**
+     * Method used to re-draw the camera UI controls, called every time configuration changes.
+     */
     private fun drawCameraControls() {
 
         // Remove previous UI if any
@@ -189,7 +211,6 @@ class PhotoActivity : AppCompatActivity() {
 
             // Disable all camera controls
             findViewById<ImageButton>(R.id.camera_capture_button).isEnabled = false
-            findViewById<ImageButton>(R.id.camera_back_button).isEnabled = false
             findViewById<ImageButton>(R.id.camera_switch_button).isEnabled = false
 
             // Get a stable reference of the modifiable image capture use case
@@ -210,7 +231,7 @@ class PhotoActivity : AppCompatActivity() {
 
                         override fun onImageSaved(file: File) {
                             setResult(Activity.RESULT_OK, Intent().apply {
-                                putExtra(IMAGE_URI, Uri.fromFile(file))
+                                putExtra(CameraConfiguration.IMAGE_URI, Uri.fromFile(file))
                             })
                             finish()
                         }
@@ -225,11 +246,6 @@ class PhotoActivity : AppCompatActivity() {
                         }
                 })
             }
-        }
-
-        // Listener for button used to exit
-        controls.findViewById<ImageButton>(R.id.camera_back_button).setOnClickListener {
-            cancelAndFinish()
         }
 
         // Listener for button used to switch cameras
@@ -279,6 +295,9 @@ class PhotoActivity : AppCompatActivity() {
             cameraProvider.unbindAll()
             val camera = cameraProvider.bindToLifecycle(
                 this as LifecycleOwner, cameraSelector, preview, imageCapture)
+
+            // TODO: Use camera controls to implement touch-to-focus once PreviewView metering
+            //  point factory is ready
         }, executor)
     }
 
@@ -290,15 +309,9 @@ class PhotoActivity : AppCompatActivity() {
             ActivityCompat.requestPermissions(
                 this, permissions.toTypedArray(), permissionsRequestCode)
         } else {
+            drawCameraControls()
             bindCameraUseCases()
         }
-
-        // Before setting full screen flags, we must wait a bit to let UI settle; otherwise, we may
-        // be trying to set app to immersive mode before it's ready and the flags do not stick
-        container.postDelayed({
-            container.systemUiVisibility =
-                FLAGS_FULLSCREEN
-        }, IMMERSIVE_FLAG_TIMEOUT)
     }
 
     override fun onRequestPermissionsResult(
@@ -315,11 +328,9 @@ class PhotoActivity : AppCompatActivity() {
         }
     }
 
+    /** Override back-navigation to add a cancelled result extra */
     override fun onBackPressed() {
-
-        // Override back-navigation to add a cancelled result extra
         setResult(Activity.RESULT_CANCELED)
-
         super.onBackPressed()
     }
 
@@ -330,20 +341,6 @@ class PhotoActivity : AppCompatActivity() {
 
     companion object {
         private val TAG = PhotoActivity::class.java.simpleName
-        private const val LIB =
-            BuildConfig.LIBRARY_PACKAGE_NAME
-
-        /** Result key for the captured image URI */
-        const val IMAGE_URI = "$LIB.IMAGE_URI"
-
-        /** User configuration key for viewfinder overlay resource ID */
-        const val VIEW_FINDER_OVERLAY = "$LIB.VIEW_FINDER_OVERLAY"
-
-        /** User configuration key for camera switching behavior */
-        const val CAMERA_BACKNAV_DISABLED = "$LIB.CAMERA_BACKNAV_DISABLED"
-
-        /** User configuration key for camera switching behavior */
-        const val CAMERA_SWITCH_DISABLED = "$LIB.CAMERA_SWITCH_DISABLED"
 
         private const val FILENAME = "yyyy-MM-dd-HH-mm-ss-SSS"
         private const val PHOTO_EXTENSION = ".jpg"

@@ -30,12 +30,16 @@
         tools:ignore="AllowBackup,GoogleAppIndexingWarning">
 
         <!-- Declare the androidx.camera.activity Activity -->
-        <activity android:name="androidx.camera.activity.PhotoActivity" />
+        <activity android:name="androidx.camera.activity.PhotoActivity">
+            <!-- Metadata configuration goes here, for example: -->
+            <!--
+            <meta-data
+                android:name="androidx.camera.activity.CAMERA_SWITCH_DISABLED"
+                android:value="true" />
+            -->
+        </activity>
 
         <activity android:name=".MainActivity">
-            <meta-data
-                android:name="androidx.camera.activity.PhotoActivity.CAMERA_SWITCH_DISABLED"
-                android:value="true" />
             <intent-filter>
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>
