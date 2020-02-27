@@ -33,6 +33,7 @@ import android.widget.ImageButton
 import androidx.appcompat.app.AppCompatActivity
 import androidx.camera.core.CameraSelector
 import androidx.camera.core.ImageCapture
+import androidx.camera.core.ImageCaptureException
 import androidx.camera.core.Preview
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
@@ -225,26 +226,29 @@ class PhotoActivity : AppCompatActivity() {
                     isReversedHorizontal = lensFacing == CameraSelector.LENS_FACING_FRONT
                 }
 
+                // Create output options object which contains file + metadata
+                val outputOptions = ImageCapture.OutputFileOptions.Builder(photoFile)
+                    .setMetadata(metadata)
+                    .build()
+
                 // Setup image capture listener which is triggered after photo has been taken
                 imageCapture.takePicture(
-                    photoFile, metadata, executor, object : ImageCapture.OnImageSavedCallback {
+                    outputOptions, executor, object : ImageCapture.OnImageSavedCallback {
 
-                        override fun onImageSaved(file: File) {
+                        override fun onImageSaved(output: ImageCapture.OutputFileResults) {
+                            val savedUri = output.savedUri ?: Uri.fromFile(photoFile)
+                            Log.d(TAG, "Image captured successfully: $savedUri")
                             setResult(Activity.RESULT_OK, Intent().apply {
-                                putExtra(CameraConfiguration.IMAGE_URI, Uri.fromFile(file))
+                                putExtra(CameraConfiguration.IMAGE_URI, savedUri)
                             })
                             finish()
                         }
 
-                        override fun onError(
-                            imageCaptureError: Int,
-                            message: String,
-                            exc: Throwable?
-                        ) {
+                        override fun onError(exc: ImageCaptureException) {
                             Log.e(TAG, "Error capturing image", exc)
                             cancelAndFinish()
                         }
-                })
+                    })
             }
         }
 
@@ -279,7 +283,7 @@ class PhotoActivity : AppCompatActivity() {
                 .setTargetRotation(viewFinder.display.rotation)
                 .build()
                 .apply {
-                    previewSurfaceProvider = viewFinder.previewSurfaceProvider
+                    setSurfaceProvider(viewFinder.previewSurfaceProvider)
                 }
 
             // Set up the capture use case to allow users to take photos
