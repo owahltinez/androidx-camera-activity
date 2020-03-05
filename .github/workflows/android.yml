@@ -19,7 +19,7 @@ jobs:
         with:
           java-version: 1.8
       - name: Unit tests
-        run: ./gradlew -Pci --no-parallel test --stacktrace
+        run: bash ./gradlew -Pci --no-parallel test --stacktrace
 
   apk:
     name: Generate APK
@@ -32,7 +32,7 @@ jobs:
         with:
           java-version: 1.8
       - name: Build debug APK
-        run: ./gradlew -Pci --no-parallel assembleDebug --stacktrace
+        run: bash ./gradlew -Pci --no-parallel assembleDebug --stacktrace
       - name: Upload APK
         uses: actions/upload-artifact@v1
         with:
